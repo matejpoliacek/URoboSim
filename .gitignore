@@ -60,5 +60,4 @@ Intermediate/*
 
 # Cache files for the editor to use
 DerivedDataCache/*
-.VC.db
-ROSBridgeTest/
+*.VC.db

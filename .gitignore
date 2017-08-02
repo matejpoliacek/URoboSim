@@ -2,6 +2,7 @@
 *.db
 *.opendb
 /UnrealRobotsP3/Binaries
+/UnrealRobotsP3/Content/StarterContent
 /UnrealRobotsP3/Build
 /UnrealRobotsP3/DerivedDataCache
 /UnrealRobotsP3/Intermediate

@@ -10,6 +10,8 @@
 #include "RRobot.h"
 #include "Engine/EngineTypes.h"
 
+static void GetJointVelocity(ARRobot* Robot, FString JointName);
+static void GetJointPosition(ARRobot* Robot, FString JointName);
 
 // Sets default values
 ARRobot::ARRobot()
@@ -22,6 +24,7 @@ ARRobot::ARRobot()
 	Root->SetupAttachment(this->RootComponent, TEXT("DefaultSceneComponent"));
 	this->SetRootComponent(Root);
 	Root->bVisualizeComponent = true;
+    UE_LOG(LogTemp, Warning, TEXT("Root - Rotation = [%s]"), *Root->GetComponentRotation().ToString()); 
 
 	// Preload meshes so they are available in runtime
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> MeshCy(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
@@ -78,7 +81,32 @@ void ARRobot::BeginPlay()
 void ARRobot::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
-	UE_LOG(LogTemp, Log, TEXT("Testing"));
+	// UE_LOG(LogTemp, Log, TEXT("Testing"));
+
+    if (GFrameCounter % 5 == 0)
+    {
+        // Get All Rigid Bodies Rotation
+        /*UE_LOG(LogTemp, Log, TEXT("At Frame [%d], Size of LinkComponents = [%d]"), GFrameCounter, LinkComponents.Num());
+        for (auto &LinkElement : LinkComponents)
+        {
+            UE_LOG(LogTemp, Log, TEXT("Component [%s], Location [%s], Rotation [%s]"), 
+                *LinkElement.Value->GetName(), *LinkElement.Value->GetComponentLocation().ToString(), 
+                *LinkElement.Value->GetComponentRotation().ToString());
+        }*/ 
+
+        for (auto &JointElement : JointComponents)
+        {
+            /* UE_LOG(LogTemp, Log, TEXT("Component [%s], Location [%s], Rotation [%s], Sw1, Sw2, Tw = [%.3f, %.3f, %.3f]"),
+                *JointElement.Value->GetName(), *JointElement.Value->GetComponentLocation().ToString(),
+                *JointElement.Value->GetComponentRotation().ToString(), 
+                JointElement.Value->GetCurrentSwing1(), 
+                JointElement.Value->GetCurrentSwing2(),
+                JointElement.Value->GetCurrentTwist()
+                );*/
+            GetJointPosition(this, JointElement.Key); 
+            GetJointVelocity(this, JointElement.Key);            
+        }
+    }
 }
 
 void ARRobot::OnConstruction(const FTransform &Transform)
@@ -457,6 +485,7 @@ bool ARRobot::CreateActorsFromNode(FRNode* Node)
 		}
 		
 		MeshComp->SetWorldLocation(ParentComp->GetComponentLocation());
+        UE_LOG(LogTemp, Warning, TEXT("Add MeshComp [%s], Parent [%s], Parent WorldRotation = [%s]"), *MeshComp->GetName(), *ParentComp->GetName(), *ParentComp->GetComponentRotation().ToString()); 
 		MeshComp->SetWorldRotation(ParentComp->GetComponentRotation());
 		MeshComp->AddRelativeLocation(LocationVisual);
 		MeshComp->SetRelativeRotation(Link->Visual.Rotation);
@@ -542,13 +571,19 @@ bool ARRobot::CreateActorsFromNode(FRNode* Node)
 		{
 			Constraint->SetWorldLocation(MeshComp->GetComponentLocation());
 			Constraint->SetConstrainedComponents(ParentLink, NAME_None, MeshComp, NAME_None);
+            UE_LOG(LogTemp, Log, TEXT("[%s] [%s] [%x] [%x]"),
+                *Constraint->ComponentName1.ComponentName.ToString(),
+                *Constraint->ComponentName2.ComponentName.ToString(),
+                Constraint->OverrideComponent1.Get(),
+                Constraint->OverrideComponent2.Get());
 		}
 
+        FRotator ParentRotation = ParentLink->GetComponentRotation();
+        FRotator ChildRotation = ShapeComp ? (ShapeComp->GetComponentRotation()) : (MeshComp->GetComponentRotation());
+        FQuat InitialRotationRel = FQuat(ParentRotation).Inverse() * FQuat(ChildRotation);
 
-		
-
-
-		JointComponents.Add(Joint->Name, Constraint);
+        OriginRotations.Add(Joint->Name, InitialRotationRel); 
+    	JointComponents.Add(Joint->Name, Constraint);
 	}
 
 	if (ShapeComp)
@@ -677,11 +712,11 @@ FConstraintInstance ARRobot::SetConstraint(FRJoint* Joint)
 		{
 			// Angular motor on X axis needs SLERP drive mode
 			ConstraintInstance.SetAngularTwistLimit(AngularConstraintMotion, SimpleLimit);
-			ConstraintInstance.SetAngularSwing1Limit(EAngularConstraintMotion::ACM_Limited, 0.1f);
-			ConstraintInstance.SetAngularSwing2Limit(EAngularConstraintMotion::ACM_Limited, 0.1f);
-			ConstraintInstance.ProfileInstance.AngularDrive.AngularDriveMode = EAngularDriveMode::SLERP;
+			// ConstraintInstance.SetAngularSwing1Limit(EAngularConstraintMotion::ACM_Limited, 0.1f);
+			// ConstraintInstance.SetAngularSwing2Limit(EAngularConstraintMotion::ACM_Limited, 0.1f);
+			// ConstraintInstance.ProfileInstance.AngularDrive.AngularDriveMode = EAngularDriveMode::SLERP;
 			ConstraintInstance.ProfileInstance.AngularDrive.SlerpDrive.MaxForce = Joint->Effort;
-			ConstraintInstance.ProfileInstance.AngularDrive.SlerpDrive.bEnablePositionDrive = true;
+			ConstraintInstance.ProfileInstance.AngularDrive.SwingDrive.bEnablePositionDrive = true; // from SlerpDrive to SwingDrive
 		}
 	}
 	if (Joint->Axis.Y == 1) {
@@ -842,4 +877,113 @@ bool ARRobot::MovePrismaticJoint(FString Name, FVector TargetPosition)
 	ConstraintInstance->SetLinearPositionTarget(TargetPosition);
 	*/
 	return true;
+}
+
+static void GetJointPosition(ARRobot* Robot, FString JointName)
+{
+    UPhysicsConstraintComponent* Joint = Robot->JointComponents[JointName];
+
+    FString ParentCompName = Joint->ComponentName1.ComponentName.ToString();
+    FString ChildCompName = Joint->ComponentName2.ComponentName.ToString();
+    UPrimitiveComponent* ParentComponent = Robot->LinkComponents[ParentCompName];
+    UPrimitiveComponent* ChildComponent = Robot->LinkComponents[ChildCompName];
+    if (ParentComponent && ChildComponent)
+    {
+        FRotator ParentRotation = ParentComponent->GetComponentRotation();
+        FRotator ChildRotation = ChildComponent->GetComponentRotation();
+        FQuat CurrentRotationRel = FQuat(ParentRotation).Inverse() * FQuat(ChildRotation);
+        FQuat InitialRotationRel = Robot->OriginRotations[Joint->GetName()];
+        FQuat QRel = CurrentRotationRel * InitialRotationRel.Inverse();
+        FVector Axis; float Angle;
+        QRel.ToAxisAndAngle(Axis, Angle);
+
+        // Get Axis
+        auto MotionSwing1 = Joint->ConstraintInstance.GetAngularSwing1Motion();
+        auto MotionSwing2 = Joint->ConstraintInstance.GetAngularSwing2Motion();
+        auto MotionTwist = Joint->ConstraintInstance.GetAngularTwistMotion();
+        bool rotationX = false, rotationY = false, rotationZ = false;
+        if (MotionSwing1 == EAngularConstraintMotion::ACM_Free || MotionSwing1 == EAngularConstraintMotion::ACM_Limited)
+            rotationZ = true;
+        if (MotionSwing2 == EAngularConstraintMotion::ACM_Free || MotionSwing2 == EAngularConstraintMotion::ACM_Limited)
+            rotationY = true;
+        if (MotionTwist == EAngularConstraintMotion::ACM_Free || MotionTwist == EAngularConstraintMotion::ACM_Limited)
+            rotationX = true;
+
+        if (!rotationX && !rotationY && !rotationZ)
+        {
+            // not a hinged joint
+            UE_LOG(LogTemp, Error, TEXT("Joint [%s] is not a hinged joint!"), *Joint->GetName());
+        }
+        else if ((rotationX && rotationY) || (rotationX && rotationZ) || (rotationY && rotationZ))
+        {
+            // not a hinged joint
+            UE_LOG(LogTemp, Error, TEXT("Joint [%s] is not a hinged joint with DOF=1"), *Joint->GetName());
+        }
+        else
+        {
+            // a hinged joint
+            FVector RefAxis;
+            if (rotationX) RefAxis = FVector(1, 0, 0);
+            if (rotationY) RefAxis = FVector(0, 1, 0);
+            if (rotationZ) RefAxis = FVector(0, 0, 1);
+
+            float ResultAngle = FVector::DotProduct(Axis.GetSafeNormal(), RefAxis) * FMath::RadiansToDegrees(Angle);
+
+            UE_LOG(LogTemp, Log, TEXT("Joint [%s] Link [%s] -> [%s] Current Axis: [%s] --- Angle: [%.3f] --- InitialRel: [%s] CurrentRel: [%s] "),
+                *Joint->GetName(), *ParentComponent->GetName(), *ChildComponent->GetName(),
+                *Axis.ToString(), ResultAngle,
+                *InitialRotationRel.Rotator().ToString(), *CurrentRotationRel.Rotator().ToString());
+        }
+    }
+}
+
+static void GetJointVelocity(ARRobot* Robot, FString JointName)
+{
+    UPhysicsConstraintComponent* Joint = Robot->JointComponents[JointName]; 
+
+    FString ParentCompName = Joint->ComponentName1.ComponentName.ToString();
+    FString ChildCompName = Joint->ComponentName2.ComponentName.ToString();
+    UPrimitiveComponent* ParentComponent = Robot->LinkComponents[ParentCompName];
+    UPrimitiveComponent* ChildComponent = Robot->LinkComponents[ChildCompName];
+
+    if (ParentComponent && ChildComponent)
+    {
+        // Get Rotation Axis
+        auto MotionSwing1 = Joint->ConstraintInstance.GetAngularSwing1Motion();
+        auto MotionSwing2 = Joint->ConstraintInstance.GetAngularSwing2Motion();
+        auto MotionTwist = Joint->ConstraintInstance.GetAngularTwistMotion();
+        bool rotationX = false, rotationY = false, rotationZ = false;
+        if (MotionSwing1 == EAngularConstraintMotion::ACM_Free || MotionSwing1 == EAngularConstraintMotion::ACM_Limited)
+            rotationZ = true;
+        if (MotionSwing2 == EAngularConstraintMotion::ACM_Free || MotionSwing2 == EAngularConstraintMotion::ACM_Limited)
+            rotationY = true;
+        if (MotionTwist == EAngularConstraintMotion::ACM_Free || MotionTwist == EAngularConstraintMotion::ACM_Limited)
+            rotationX = true;
+
+        if ((!rotationX && !rotationY && !rotationZ) || (rotationX && rotationY) || (rotationX && rotationZ) || (rotationY && rotationZ))
+        {
+            // not a hinged joint
+            UE_LOG(LogTemp, Error, TEXT("Joint [%s] is not a hinged joint with DOF=1"), *Joint->GetName());
+        }
+        else
+        {
+            // a hinged joint
+            FVector RefAxis;
+            if (rotationX) RefAxis = FVector(1, 0, 0);
+            if (rotationY) RefAxis = FVector(0, 1, 0);
+            if (rotationZ) RefAxis = FVector(0, 0, 1);
+
+            // Get Axis ? 
+            FQuat JointQuat = Joint->GetComponentTransform().GetRotation();
+            FVector GlobalAxis = JointQuat.RotateVector(RefAxis); // Rotation Axis in Global Frame
+
+            FVector ParentAvel = ParentComponent->GetPhysicsAngularVelocity();
+            FVector ChildAvel = ChildComponent->GetPhysicsAngularVelocity();
+            float HingeVel = FVector::DotProduct(ChildAvel - ParentAvel, GlobalAxis); 
+
+            UE_LOG(LogTemp, Warning, TEXT("Joint [%s]: Rotation [%s], Axis [%s] (local), Axis [%s] (global), HingeVel = %.3f"),
+                *Joint->GetName(), *JointQuat.Rotator().ToString(), *RefAxis.ToString(), *GlobalAxis.ToString(), HingeVel); 
+            
+        }
+    }
 }

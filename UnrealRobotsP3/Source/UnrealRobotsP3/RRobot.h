@@ -6,18 +6,24 @@
 #include "GameFramework/Actor.h"
 #include "RRobot.generated.h"
 
-UCLASS()
+UCLASS(Blueprintable)
 class UNREALROBOTSP3_API ARRobot : public AActor
 {
 	GENERATED_BODY()
 
-private:
+public:
 
 	// All the links that are attached to this Robot. Key is Name of link, Value is the link.
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Map")
 	TMap<FString, UPrimitiveComponent*> LinkComponents;
 
 	// All the joints that connect the links together. Key is Name of joint, Value is the joint.
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Map")
 	TMap<FString, UPhysicsConstraintComponent*> JointComponents;
+
+    // Initial Relative Rotation (Quaternion) 
+    UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Map")
+    TMap<FString, FQuat> OriginRotations; 
 
 	// Original relative locations of links that are constrained with prismatic type
 	TMap<FString, FVector> OriginLocations;

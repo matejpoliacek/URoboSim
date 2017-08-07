@@ -1,6 +1,6 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-#include "UnrealRobotsP3.h"
+#include "IUnrealRobots.h"
 #include "RURDFData.h"
 #include "Factories/FbxFactory.h"
 #include "AssetRegistryModule.h"

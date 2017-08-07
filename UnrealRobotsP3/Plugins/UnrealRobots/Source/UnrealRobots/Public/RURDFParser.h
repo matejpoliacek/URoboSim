@@ -2,14 +2,14 @@
 
 #pragma once
 
-#include "UnrealRobotsP3.h"
+#include "IUnrealRobots.h"
 #include "RRobot.h"
 #include "Runtime/XmlParser/Public/FastXml.h"
 
 /**
 * Parser who gets the information from the XML for the robot.
 */
-class UNREALROBOTSP3_API FRURDFParser : private IFastXmlCallback
+class UNREALROBOTS_API FRURDFParser : private IFastXmlCallback
 {
 private:
 

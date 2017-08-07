@@ -4,6 +4,7 @@
 #define __UNREALROBOTSP3_H__
 
 #include "EngineMinimal.h"
+#include "EngineUtils.h"
 
 
 #endif

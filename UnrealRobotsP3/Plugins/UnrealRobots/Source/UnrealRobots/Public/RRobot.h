@@ -7,7 +7,7 @@
 #include "RRobot.generated.h"
 
 UCLASS(Blueprintable)
-class UNREALROBOTSP3_API ARRobot : public AActor
+class UNREALROBOTS_API ARRobot : public AActor
 {
 	GENERATED_BODY()
 
@@ -165,6 +165,18 @@ public:
 
 	// Moves the prismatic joint to the targeted position
 	bool MovePrismaticJoint(FString Name, FVector TargetTranslation);
+
+    // Get Joint Position in *Degrees*
+    UFUNCTION(BlueprintCallable, Category="Robot")
+    float GetJointPosition(FString JointName);
+
+    // Get Joint Velocity in Deg/s
+    UFUNCTION(BlueprintCallable, Category="Robot")
+    float GetJointVelocity(FString JointName);
+
+    // Add force / torque to given Joint
+    UFUNCTION(BlueprintCallable, Category="Robot")
+    void AddForceToJoint(FString JointName, float Force);
 
 private:
 

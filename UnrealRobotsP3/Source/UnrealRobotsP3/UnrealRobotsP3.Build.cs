@@ -6,8 +6,8 @@ public class UnrealRobotsP3 : ModuleRules
 {
 	public UnrealRobotsP3(TargetInfo Target)
 	{
-		PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "XmlParser", "UnrealEd", "UnrealRobots" });
+        PublicDependencyModuleNames.AddRange(new string[] { "Core", "CoreUObject", "Engine", "InputCore", "HeadMountedDisplay", "XmlParser", "UnrealEd", "UnrealRobots", "ROSBridgePlugin" });
 		
-		PrivateDependencyModuleNames.AddRange(new string[] { "UnrealRobots" });        
+        PrivateDependencyModuleNames.AddRange(new string[] { "UnrealRobots", "ROSBridgePlugin" });
     }
 }

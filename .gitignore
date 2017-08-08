@@ -8,6 +8,12 @@
 /UnrealRobotsP3/Intermediate
 /UnrealRobotsP3/Saved
 /UnrealRobotsP3/.vs
+/UnrealRobotsP3/.kdev4
+*.kdev4
+*.pro
+*.pro.user
+*.workspace
+*.pri
 *.sln
 *.suo
 

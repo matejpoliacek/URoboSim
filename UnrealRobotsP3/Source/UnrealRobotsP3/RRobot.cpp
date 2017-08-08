@@ -487,33 +487,36 @@ bool ARRobot::CreateActorsFromNode(FRNode* Node)
 		if (Joint->Name.Contains("r_shoulder_lift")) {			
 			rotTarget= FRotator(-30.f, 0.f, 0.f);
 		}	
-		//Damping requires velocity drive to be enabled
-		ConstraintInstance.ProfileInstance.AngularDrive.AngularVelocityTarget = FVector (0.f, 0.f, 0.f);		
-		ConstraintInstance.ProfileInstance.AngularDrive.SlerpDrive.bEnableVelocityDrive = true;
-		ConstraintInstance.ProfileInstance.AngularDrive.SwingDrive.bEnableVelocityDrive = true;
-		ConstraintInstance.ProfileInstance.AngularDrive.TwistDrive.bEnableVelocityDrive = true;
-
 		
-		ConstraintInstance.ProfileInstance.AngularDrive.AngularDriveMode = EAngularDriveMode::TwistAndSwing;
-		ConstraintInstance.SetLinearXLimit(ELinearConstraintMotion::LCM_Locked, 0);
-		ConstraintInstance.SetLinearYLimit(ELinearConstraintMotion::LCM_Locked, 0);
-		ConstraintInstance.SetLinearZLimit(ELinearConstraintMotion::LCM_Locked, 0);
 		
-		ConstraintInstance.ProfileInstance.AngularDrive.OrientationTarget = rotTarget;
-
-		ConstraintInstance.ProfileInstance.AngularDrive.SlerpDrive.bEnablePositionDrive = true;
-		ConstraintInstance.ProfileInstance.AngularDrive.SwingDrive.bEnablePositionDrive = true;
-		ConstraintInstance.ProfileInstance.AngularDrive.TwistDrive.bEnablePositionDrive = true;
-
-		
-		ConstraintInstance.ProfileInstance.AngularDrive.SlerpDrive.Damping = Link->Inertial.Mass* 50000;
-		ConstraintInstance.ProfileInstance.AngularDrive.SlerpDrive.Stiffness = Link->Inertial.Mass* 120000;
-
-		ConstraintInstance.ProfileInstance.AngularDrive.SwingDrive.Damping = Link->Inertial.Mass * 50000;
-		ConstraintInstance.ProfileInstance.AngularDrive.SwingDrive.Stiffness = Link->Inertial.Mass * 120000;
-
-		ConstraintInstance.ProfileInstance.AngularDrive.TwistDrive.Damping = Link->Inertial.Mass * 50000;
-		ConstraintInstance.ProfileInstance.AngularDrive.TwistDrive.Stiffness = Link->Inertial.Mass * 120000;
+		// Disable built-in motor for joints (Yilong)
+		// Damping requires velocity drive to be enabled
+		// ConstraintInstance.ProfileInstance.AngularDrive.AngularVelocityTarget = FVector (0.f, 0.f, 0.f);		
+		// ConstraintInstance.ProfileInstance.AngularDrive.SlerpDrive.bEnableVelocityDrive = true;
+		// ConstraintInstance.ProfileInstance.AngularDrive.SwingDrive.bEnableVelocityDrive = true;
+		// ConstraintInstance.ProfileInstance.AngularDrive.TwistDrive.bEnableVelocityDrive = true;
+        //
+        //
+		// ConstraintInstance.ProfileInstance.AngularDrive.AngularDriveMode = EAngularDriveMode::TwistAndSwing;
+		// ConstraintInstance.SetLinearXLimit(ELinearConstraintMotion::LCM_Locked, 0);
+		// ConstraintInstance.SetLinearYLimit(ELinearConstraintMotion::LCM_Locked, 0);
+		// ConstraintInstance.SetLinearZLimit(ELinearConstraintMotion::LCM_Locked, 0);
+		//
+		// ConstraintInstance.ProfileInstance.AngularDrive.OrientationTarget = rotTarget;
+        //
+		// ConstraintInstance.ProfileInstance.AngularDrive.SlerpDrive.bEnablePositionDrive = true;
+		// ConstraintInstance.ProfileInstance.AngularDrive.SwingDrive.bEnablePositionDrive = true;
+		// ConstraintInstance.ProfileInstance.AngularDrive.TwistDrive.bEnablePositionDrive = true;
+        //
+		//
+		// ConstraintInstance.ProfileInstance.AngularDrive.SlerpDrive.Damping = Link->Inertial.Mass* 50000;
+		// ConstraintInstance.ProfileInstance.AngularDrive.SlerpDrive.Stiffness = Link->Inertial.Mass* 120000;
+        //
+		// ConstraintInstance.ProfileInstance.AngularDrive.SwingDrive.Damping = Link->Inertial.Mass * 50000;
+		// ConstraintInstance.ProfileInstance.AngularDrive.SwingDrive.Stiffness = Link->Inertial.Mass * 120000;
+        //
+		// ConstraintInstance.ProfileInstance.AngularDrive.TwistDrive.Damping = Link->Inertial.Mass * 50000;
+		// ConstraintInstance.ProfileInstance.AngularDrive.TwistDrive.Stiffness = Link->Inertial.Mass * 120000; */
 
 
 

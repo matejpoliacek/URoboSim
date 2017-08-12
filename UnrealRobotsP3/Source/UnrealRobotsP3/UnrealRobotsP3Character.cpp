@@ -1,7 +1,7 @@
 // Copyright 1998-2016 Epic Games, Inc. All Rights Reserved.
 
-#include "UnrealRobotsP3.h"
 #include "UnrealRobotsP3Character.h"
+#include "UnrealRobotsP3.h"
 #include "UnrealRobotsP3Projectile.h"
 #include "Animation/AnimInstance.h"
 #include "GameFramework/InputSettings.h"

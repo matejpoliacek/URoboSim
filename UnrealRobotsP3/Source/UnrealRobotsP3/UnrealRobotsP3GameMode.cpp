@@ -1,7 +1,7 @@
 // Copyright 1998-2016 Epic Games, Inc. All Rights Reserved.
 
-#include "UnrealRobotsP3.h"
 #include "UnrealRobotsP3GameMode.h"
+#include "UnrealRobotsP3.h"
 #include "ROSBridgeHandler.h"
 #include "ROSBridgePublisher.h"
 #include "rosgraph_msgs/Clock.h"

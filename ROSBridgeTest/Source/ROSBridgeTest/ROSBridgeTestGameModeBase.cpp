@@ -12,7 +12,7 @@ void AROSBridgeTestGameModeBase::BeginPlay()
     // AROSBridgeActor* Actor = GetWorld()->SpawnActor<AROSBridgeActor>(AROSBridgeActor::StaticClass());
 
     // Set websocket server address to ws://127.0.0.1:9001
-    Handler = MakeShareable<FROSBridgeHandler>(new FROSBridgeHandler(TEXT("127.0.0.1"), 9001));
+    Handler = MakeShareable<FROSBridgeHandler>(new FROSBridgeHandler(TEXT("192.168.0.16"), 9001));
     UE_LOG(LogTemp, Log, TEXT("Handler Created. "));
 
     // Add subscriber for /chatter topic

@@ -11,7 +11,7 @@ void AROSBridgeTestGameModeBase::BeginPlay()
     Super::BeginPlay();
     // AROSBridgeActor* Actor = GetWorld()->SpawnActor<AROSBridgeActor>(AROSBridgeActor::StaticClass());
 
-    // Set websocket server address to ws://127.0.0.1:9001
+    // Set websocket server address to ws://127.0.0.1:9001 
     Handler = MakeShareable<FROSBridgeHandler>(new FROSBridgeHandler(TEXT("192.168.0.16"), 9001));
     UE_LOG(LogTemp, Log, TEXT("Handler Created. "));
 
@@ -19,6 +19,11 @@ void AROSBridgeTestGameModeBase::BeginPlay()
     Subscriber = MakeShareable<FROSStringSubScriber>(new FROSStringSubScriber(TEXT("/chatter")));
     Handler->AddSubscriber(Subscriber);
     UE_LOG(LogTemp, Log, TEXT("Added chatter subscriber. "));
+	
+	// Add subsrciber for /odom topic
+	OdomSubscriber = MakeShareable<FROSOdometrySubScriber>(new FROSOdometrySubScriber(TEXT("/odom")));
+	Handler->AddSubscriber(OdomSubscriber);
+	UE_LOG(LogTemp, Log, TEXT("Added odom subscriber. "));
 
     // Add publisher for /talker topic
     Publisher = MakeShareable<FROSBridgePublisher>(new FROSBridgePublisher(TEXT("sensor_msgs/JointState"), TEXT("/talker")));

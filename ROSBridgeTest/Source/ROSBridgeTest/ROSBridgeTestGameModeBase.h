@@ -8,6 +8,7 @@
 #include "ROSBridgeHandler.h"
 #include "ROSBridgePublisher.h"
 #include "ROSStringSubscriber.h"
+#include "ROSOdometrySubscriber.h"
 #include "ROSAddTwoIntsClient.h"
 #include "ROSAddTwoIntsServer.h"
 
@@ -27,6 +28,7 @@ class ROSBRIDGETEST_API AROSBridgeTestGameModeBase : public AGameModeBase
 public:
     TSharedPtr<FROSBridgeHandler> Handler;
     TSharedPtr<FROSStringSubScriber> Subscriber;
+	TSharedPtr<FROSOdometrySubScriber> OdomSubscriber;
     TSharedPtr<FROSBridgePublisher> Publisher;
     TSharedPtr<FROSAddTwoIntsClient> ServiceClient;
     TSharedPtr<FROSAddTwoIntsServer> ServiceServer;

@@ -4,6 +4,7 @@
 #include "nav_msgs/Odometry.h"
 #include "Core.h"
 
+
 class FROSOdometrySubScriber : public FROSBridgeSubscriber {
 
 public:
@@ -30,8 +31,20 @@ public:
 		TSharedPtr<FROSBridgeMsgNavmsgsOdometry> Odometry = StaticCastSharedPtr<FROSBridgeMsgNavmsgsOdometry>(msg);
 		// do something
 		UE_LOG(LogTemp, Log, TEXT("Message received! Content: %s"), *Odometry->ToString());
+		OutputMsgToFile(Odometry->ToJsonObject());
 
 		return;
 	}
 
+private:
+	void OutputMsgToFile(TSharedPtr<FJsonObject> MsgJson)  const
+	{
+		FString FilePath = "C:\\Users\\Matej\\Documents\\Unreal Projects\\MScProject\\OdomMsgs.txt";
+		FString MsgString;
+		TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&MsgString);
+
+		if (FJsonSerializer::Serialize(MsgJson.ToSharedRef(), Writer)) {
+			FFileHelper::SaveStringToFile(MsgString, *FilePath);
+		}
+	}
 };

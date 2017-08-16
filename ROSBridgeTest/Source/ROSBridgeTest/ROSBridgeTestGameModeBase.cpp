@@ -20,15 +20,18 @@ void AROSBridgeTestGameModeBase::BeginPlay()
     Handler->AddSubscriber(Subscriber);
     UE_LOG(LogTemp, Log, TEXT("Added chatter subscriber. "));
 	
+	/*
 	// Add subsrciber for /odom topic
 	OdomSubscriber = MakeShareable<FROSOdometrySubScriber>(new FROSOdometrySubScriber(TEXT("/odom")));
 	Handler->AddSubscriber(OdomSubscriber);
 	UE_LOG(LogTemp, Log, TEXT("Added odom subscriber. "));
+	*/
 
     // Add publisher for /talker topic
     Publisher = MakeShareable<FROSBridgePublisher>(new FROSBridgePublisher(TEXT("sensor_msgs/JointState"), TEXT("/talker")));
     Handler->AddPublisher(Publisher);
 
+	/*
     // Add service client for /add_two_ints service
     ServiceClient = MakeShareable<FROSAddTwoIntsClient>(new FROSAddTwoIntsClient(TEXT("add_two_ints")));
 
@@ -36,6 +39,7 @@ void AROSBridgeTestGameModeBase::BeginPlay()
     ServiceServer = MakeShareable<FROSAddTwoIntsServer>(new FROSAddTwoIntsServer(TEXT("add_two_ints_2")));
     Handler->AddServiceServer(ServiceServer);
     UE_LOG(LogTemp, Log, TEXT("Added /add_two_ints_2 server. "));
+	*/
 
     // Connect to ROSBridge Websocket server.
     Handler->Connect();
@@ -53,6 +57,7 @@ void AROSBridgeTestGameModeBase::Tick(float DeltaSeconds)
         SendJointStateMessage(Handler);
     }
 
+	/*
     if (GFrameCounter % 10 == 0)
     {
         int NumA = FMath::RandRange(1, 10000);
@@ -62,6 +67,7 @@ void AROSBridgeTestGameModeBase::Tick(float DeltaSeconds)
         UE_LOG(LogTemp, Log, TEXT("Call Service in Tick: %d + %d"), NumA, NumB);
         Handler->CallService(ServiceClient, Request, Response);
     }
+	*/
 
     Handler->Render();
 }

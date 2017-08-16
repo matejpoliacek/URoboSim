@@ -8,10 +8,11 @@
 #include "ROSBridgeHandler.h"
 #include "ROSBridgePublisher.h"
 #include "ROSStringSubscriber.h"
+/*
 #include "ROSOdometrySubscriber.h"
 #include "ROSAddTwoIntsClient.h"
 #include "ROSAddTwoIntsServer.h"
-
+*/
 #include "sensor_msgs/JointState.h"
 #include "std_msgs/Header.h"
 
@@ -27,12 +28,13 @@ class ROSBRIDGETEST_API AROSBridgeTestGameModeBase : public AGameModeBase
 	
 public:
     TSharedPtr<FROSBridgeHandler> Handler;
-    TSharedPtr<FROSStringSubScriber> Subscriber;
+	TSharedPtr<FROSStringSubScriber> Subscriber;
+	TSharedPtr<FROSBridgePublisher> Publisher;
+    /*
 	TSharedPtr<FROSOdometrySubScriber> OdomSubscriber;
-    TSharedPtr<FROSBridgePublisher> Publisher;
-    TSharedPtr<FROSAddTwoIntsClient> ServiceClient;
+	TSharedPtr<FROSAddTwoIntsClient> ServiceClient;
     TSharedPtr<FROSAddTwoIntsServer> ServiceServer;
-
+	*/
     AROSBridgeTestGameModeBase(const FObjectInitializer &ObjectInitializer) :
         AGameModeBase(ObjectInitializer){
         PrimaryActorTick.bCanEverTick = true;

@@ -28,7 +28,7 @@ public:
 		double x = 0.0, y = 0.0, z = 0.0, w = 0.0;
 	};
 
-	double CM_MULTIPLIER = 100.0;
+	double toCM_MULTIPLIER = 100.0;
 
 	AActor* Owner;
 	
@@ -36,6 +36,9 @@ public:
 	TSharedPtr<FROSOdometrySubScriber> OdomSubscriber;
 
 	TSharedPtr<FJsonObject> JsonObject, PoseObject, PositionObject, OrientationObject;
+
+	FVector InitialLocation;
+	FRotator InitialRotation;
 
 	double init_pos_x = 0.0, init_pos_y = 0.0, init_pos_z = 0.0, init_yaw = 0.0, init_pitch = 0.0, init_roll = 0.0;
 	double pos_x = 0.0, pos_y = 0.0, pos_z = 0.0;
@@ -78,6 +81,25 @@ public:
 	static void RadiansToDegrees(double& angle)
 	{
 		angle = angle * 180 / M_PI;
+	};
+
+	bool DoTrace(FHitResult* RV_Hit, FCollisionQueryParams* RV_TraceParams, FCollisionResponseParams* RV_ResponseParams, FVector StartLoc, FVector EndLoc)
+	{
+		RV_TraceParams->bTraceComplex = true;
+		RV_TraceParams->bTraceAsyncScene = true;
+		RV_TraceParams->bReturnPhysicalMaterial = true;
+
+		//  do the line trace
+		bool DidTrace = GetWorld()->LineTraceSingleByChannel(
+			*RV_Hit,        //result
+			StartLoc,        //start
+			EndLoc,        //end
+			ECC_Pawn,    //collision channel
+			*RV_TraceParams,
+			*RV_ResponseParams
+			);
+
+		return DidTrace;
 	};
 
 };

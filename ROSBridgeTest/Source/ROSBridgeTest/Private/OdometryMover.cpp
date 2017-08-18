@@ -2,7 +2,7 @@
 
 #include "OdometryMover.h"
 #include "GameFramework/Actor.h"
-#include "Kismet/KismetMathLibrary.h"
+// #include "Kismet/KismetMathLibrary.h"
 
 
 // Sets default values for this component's properties
@@ -34,12 +34,12 @@ void UOdometryMover::BeginPlay()
 	
 	Owner = GetOwner();
 	
-	FVector InitialLocation = Owner->GetActorLocation();
+	InitialLocation = Owner->GetActorLocation();
 	init_pos_x = InitialLocation.X;
 	init_pos_y = InitialLocation.Y;
 	init_pos_z = InitialLocation.Z;
 
-	FRotator InitialRotation = Owner->GetActorRotation();
+	InitialRotation = Owner->GetActorRotation();
 	init_pitch = InitialRotation.Pitch;
 	init_yaw = InitialRotation.Yaw;
 	init_roll = InitialRotation.Roll;
@@ -95,17 +95,19 @@ void UOdometryMover::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 	q.w = orient_w;
 
 	// adapt units
-	pos_x = pos_x * CM_MULTIPLIER;
-	pos_y = pos_y * CM_MULTIPLIER;
-	pos_z = pos_z * CM_MULTIPLIER;
+	pos_x = pos_x * toCM_MULTIPLIER;
+	pos_y = pos_y * toCM_MULTIPLIER;
+	pos_z = pos_z * toCM_MULTIPLIER;
 
 	toEulerianAngle(q, roll, pitch, yaw);
 	RadiansToDegrees(roll);
 	RadiansToDegrees(pitch);
 	RadiansToDegrees(yaw);
 
+	// ROS provided yaw is opposite in UE
+	yaw = -yaw;
+
 	FVector CurrentLocation = Owner->GetActorLocation();
-	auto delta = GetWorld()->GetDeltaSeconds();
 
 	// apply positional changes to the actor
 	FVector EndLocation = FVector(init_pos_x + pos_x, init_pos_y + pos_y, init_pos_z + pos_z);
@@ -113,10 +115,37 @@ void UOdometryMover::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 
 	// setactorlocation ignores collisions
 	// tried UKismetMathLibrary::VInterpTo, though it also uses setactorlocation so collisions are ignored
+	// auto delta = GetWorld()->GetDeltaSeconds();
 	//FVector DestinationLocation = UKismetMathLibrary::VInterpTo(CurrentLocation, EndLocation, delta, 150.0);
 	//Owner->SetActorLocation(DestinationLocation);
 
-	Owner->SetActorLocation(EndLocation);
+	FHitResult RV_Hit(ForceInit);
+	FCollisionQueryParams RV_TraceParams = FCollisionQueryParams(FName(TEXT("RV_Trace")), true, Owner);
+	FCollisionResponseParams RV_ResponseParams;
+	
+	bool bCollision = DoTrace(&RV_Hit, &RV_TraceParams, &RV_ResponseParams, CurrentLocation, EndLocation);
+
+	//if bCollision get RV_hit.Location(), else use EndLocation for destination
+	if (bCollision) {
+		Owner->SetActorLocation(RV_Hit.Location);
+		
+		// every time the bot collides, set a new "initial position", so that it doesn't teleport around the place
+		// e.g. if the bot rotates and then moves forward in a direction, where there's nothing in its way, 
+		// it would just jump forward to the point sent in the message by ROS
+			
+		// if the bot is at the location where the collision occurs, make it move from this position, if new direction is unobstructed
+		if (CurrentLocation == RV_Hit.Location) {
+			UE_LOG(LogTemp, Log, TEXT("Bot at collision location."));
+
+			//init_pos_x = RV_Hit.Location.X;
+			//init_pos_y = RV_Hit.Location.Y;
+			//init_pos_z = RV_Hit.Location.Z;
+		}
+	}
+	else {
+		Owner->SetActorLocation(EndLocation);
+	}
+
 	Owner->SetActorRotation(EndRotation);
 
 	// log data for debugging
@@ -132,3 +161,5 @@ void UOdometryMover::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	Super::EndPlay(EndPlayReason);
 	Handler->Disconnect();
 }
+
+

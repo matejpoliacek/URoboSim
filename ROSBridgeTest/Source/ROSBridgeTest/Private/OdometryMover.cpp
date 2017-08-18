@@ -2,7 +2,8 @@
 
 #include "OdometryMover.h"
 #include "GameFramework/Actor.h"
-#include "math.h"
+#include "Kismet/KismetMathLibrary.h"
+
 
 // Sets default values for this component's properties
 UOdometryMover::UOdometryMover()
@@ -32,6 +33,17 @@ void UOdometryMover::BeginPlay()
 	UE_LOG(LogTemp, Log, TEXT("OdometryMover handler connected to WebSocket server. "));
 	
 	Owner = GetOwner();
+	
+	FVector InitialLocation = Owner->GetActorLocation();
+	init_pos_x = InitialLocation.X;
+	init_pos_y = InitialLocation.Y;
+	init_pos_z = InitialLocation.Z;
+
+	FRotator InitialRotation = Owner->GetActorRotation();
+	init_pitch = InitialRotation.Pitch;
+	init_yaw = InitialRotation.Yaw;
+	init_roll = InitialRotation.Roll;
+
 }
 
 
@@ -88,13 +100,24 @@ void UOdometryMover::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 	pos_z = pos_z * CM_MULTIPLIER;
 
 	toEulerianAngle(q, roll, pitch, yaw);
+	RadiansToDegrees(roll);
+	RadiansToDegrees(pitch);
+	RadiansToDegrees(yaw);
+
+	FVector CurrentLocation = Owner->GetActorLocation();
+	auto delta = GetWorld()->GetDeltaSeconds();
 
 	// apply positional changes to the actor
-	FVector NewLocation = FVector(pos_x, pos_y, pos_z+VERTICAL_OFFSET);
-	FRotator NewRotation = FRotator(pitch, yaw, roll);
+	FVector EndLocation = FVector(init_pos_x + pos_x, init_pos_y + pos_y, init_pos_z + pos_z);
+	FRotator EndRotation = FRotator(init_pitch + pitch, init_yaw + yaw, init_roll + roll);
 
-	Owner->SetActorLocation(NewLocation);
-	Owner->SetActorRotation(NewRotation);
+	// setactorlocation ignores collisions
+	// tried UKismetMathLibrary::VInterpTo, though it also uses setactorlocation so collisions are ignored
+	//FVector DestinationLocation = UKismetMathLibrary::VInterpTo(CurrentLocation, EndLocation, delta, 150.0);
+	//Owner->SetActorLocation(DestinationLocation);
+
+	Owner->SetActorLocation(EndLocation);
+	Owner->SetActorRotation(EndRotation);
 
 	// log data for debugging
 	FString DataLog = "Data applied: pos x:" + FString::SanitizeFloat(pos_x) + " y:" + FString::SanitizeFloat(pos_y) + " z:" + FString::SanitizeFloat(pos_z) +

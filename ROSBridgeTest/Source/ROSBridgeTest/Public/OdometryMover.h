@@ -2,18 +2,19 @@
 
 #pragma once
 
+#define _USE_MATH_DEFINES
+#include <cmath>
+
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 
 #include "ROSBridgeHandler.h"
 #include "ROSOdometrySubscriber.h"
 
+
+
 #include "OdometryMover.generated.h"
 
-struct Quaternion
-{
-	double x = 0.0, y = 0.0, z = 0.0, w = 0.0;
-};
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class ROSBRIDGETEST_API UOdometryMover : public UActorComponent
@@ -22,8 +23,12 @@ class ROSBRIDGETEST_API UOdometryMover : public UActorComponent
 
 public:	
 
+	struct Quaternion
+	{
+		double x = 0.0, y = 0.0, z = 0.0, w = 0.0;
+	};
+
 	double CM_MULTIPLIER = 100.0;
-	double VERTICAL_OFFSET = 70.5; // height of a cube and a bit
 
 	AActor* Owner;
 	
@@ -32,6 +37,7 @@ public:
 
 	TSharedPtr<FJsonObject> JsonObject, PoseObject, PositionObject, OrientationObject;
 
+	double init_pos_x = 0.0, init_pos_y = 0.0, init_pos_z = 0.0, init_yaw = 0.0, init_pitch = 0.0, init_roll = 0.0;
 	double pos_x = 0.0, pos_y = 0.0, pos_z = 0.0;
 	double orient_x = 0.0, orient_y = 0.0, orient_z = 0.0, orient_w = 0.0, yaw = 0.0, pitch = 0.0, roll = 0.0;
 	
@@ -67,6 +73,11 @@ public:
 		double t3 = +2.0 * (q.w * q.z + q.x * q.y);
 		double t4 = +1.0 - 2.0 * (ysqr + q.z * q.z);
 		yaw = atan2(t3, t4);
+	};
+
+	static void RadiansToDegrees(double& angle)
+	{
+		angle = angle * 180 / M_PI;
 	};
 
 };

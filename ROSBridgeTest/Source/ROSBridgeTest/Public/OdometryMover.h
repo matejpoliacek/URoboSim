@@ -37,10 +37,14 @@ public:
 
 	TSharedPtr<FJsonObject> JsonObject, PoseObject, PositionObject, OrientationObject;
 
-	FVector InitialLocation;
-	FRotator InitialRotation;
+	FVector NewLocation;
+	FVector OldLocation;
+	FVector LocationDifference;
 
-	double init_pos_x = 0.0, init_pos_y = 0.0, init_pos_z = 0.0, init_yaw = 0.0, init_pitch = 0.0, init_roll = 0.0;
+	FRotator NewRotation;
+	FRotator OldRotation;
+	FRotator RotationDifference;
+
 	double pos_x = 0.0, pos_y = 0.0, pos_z = 0.0;
 	double orient_x = 0.0, orient_y = 0.0, orient_z = 0.0, orient_w = 0.0, yaw = 0.0, pitch = 0.0, roll = 0.0;
 	
@@ -100,6 +104,18 @@ public:
 			);
 
 		return DidTrace;
+	};
+
+	// calculates change in position 
+	void CalculatePositionDifference(FVector PreviousLocation, FVector NewLocation, FVector& PositionDifference) {
+		PositionDifference = NewLocation - PreviousLocation;
+		return;
+	};
+
+	// calculates change in orientation
+	void CalculateOrientationDifference(FRotator PreviousOrientation, FRotator NewOrientation, FRotator& OrientationDifference) {
+		OrientationDifference = NewOrientation - PreviousOrientation;
+		return;
 	};
 
 };

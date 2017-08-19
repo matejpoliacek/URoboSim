@@ -2,7 +2,6 @@
 
 #include "OdometryMover.h"
 #include "GameFramework/Actor.h"
-// #include "Kismet/KismetMathLibrary.h"
 
 
 // Sets default values for this component's properties
@@ -34,16 +33,8 @@ void UOdometryMover::BeginPlay()
 	
 	Owner = GetOwner();
 	
-	InitialLocation = Owner->GetActorLocation();
-	init_pos_x = InitialLocation.X;
-	init_pos_y = InitialLocation.Y;
-	init_pos_z = InitialLocation.Z;
-
-	InitialRotation = Owner->GetActorRotation();
-	init_pitch = InitialRotation.Pitch;
-	init_yaw = InitialRotation.Yaw;
-	init_roll = InitialRotation.Roll;
-
+	OldLocation = Owner->GetActorLocation();
+	OldRotation = Owner->GetActorRotation();
 }
 
 
@@ -94,30 +85,31 @@ void UOdometryMover::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 	q.z = orient_z;
 	q.w = orient_w;
 
-	// adapt units
-	pos_x = pos_x * toCM_MULTIPLIER;
-	pos_y = pos_y * toCM_MULTIPLIER;
-	pos_z = pos_z * toCM_MULTIPLIER;
+	// adapt units and store
+	// ROS provided y value and yaw is opposite in UE, hence we need to set them negative
+	NewLocation = FVector(pos_x * toCM_MULTIPLIER, -pos_y * toCM_MULTIPLIER, pos_z * toCM_MULTIPLIER);
 
 	toEulerianAngle(q, roll, pitch, yaw);
-	RadiansToDegrees(roll);
 	RadiansToDegrees(pitch);
 	RadiansToDegrees(yaw);
+	RadiansToDegrees(roll);
 
-	// ROS provided yaw is opposite in UE
 	yaw = -yaw;
 
+	NewRotation = FRotator(pitch, yaw, roll);
+	
+	// obtain differences from previous state
+	CalculatePositionDifference(OldLocation, NewLocation, LocationDifference);
+	CalculateOrientationDifference(OldRotation, NewRotation, RotationDifference);
+
+
 	FVector CurrentLocation = Owner->GetActorLocation();
+	FRotator CurrentRotation = Owner->GetActorRotation();
 
 	// apply positional changes to the actor
-	FVector EndLocation = FVector(init_pos_x + pos_x, init_pos_y + pos_y, init_pos_z + pos_z);
-	FRotator EndRotation = FRotator(init_pitch + pitch, init_yaw + yaw, init_roll + roll);
+	FVector EndLocation = CurrentLocation + LocationDifference;
+	FRotator EndRotation = CurrentRotation + RotationDifference;
 
-	// setactorlocation ignores collisions
-	// tried UKismetMathLibrary::VInterpTo, though it also uses setactorlocation so collisions are ignored
-	// auto delta = GetWorld()->GetDeltaSeconds();
-	//FVector DestinationLocation = UKismetMathLibrary::VInterpTo(CurrentLocation, EndLocation, delta, 150.0);
-	//Owner->SetActorLocation(DestinationLocation);
 
 	FHitResult RV_Hit(ForceInit);
 	FCollisionQueryParams RV_TraceParams = FCollisionQueryParams(FName(TEXT("RV_Trace")), true, Owner);
@@ -125,34 +117,48 @@ void UOdometryMover::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 	
 	bool bCollision = DoTrace(&RV_Hit, &RV_TraceParams, &RV_ResponseParams, CurrentLocation, EndLocation);
 
-	//if bCollision get RV_hit.Location(), else use EndLocation for destination
+	//if bCollision (i.e. robot has collided)... 
 	if (bCollision) {
-		Owner->SetActorLocation(RV_Hit.Location);
-		
-		// every time the bot collides, set a new "initial position", so that it doesn't teleport around the place
-		// e.g. if the bot rotates and then moves forward in a direction, where there's nothing in its way, 
-		// it would just jump forward to the point sent in the message by ROS
-			
-		// if the bot is at the location where the collision occurs, make it move from this position, if new direction is unobstructed
-		if (CurrentLocation == RV_Hit.Location) {
-			UE_LOG(LogTemp, Log, TEXT("Bot at collision location."));
 
-			//init_pos_x = RV_Hit.Location.X;
-			//init_pos_y = RV_Hit.Location.Y;
-			//init_pos_z = RV_Hit.Location.Z;
+		//... and the robot is at the location of the collision
+		if (CurrentLocation == RV_Hit.Location) {
+			// don't move, only log collision (new rotation will be applied)
+			UE_LOG(LogTemp, Log, TEXT("Bot at collision location."));
 		}
+
+		// ... and the robot is yet to reach the location of the collision
+		else {
+			// check if the new location is before the collision location
+			bool bAtCollision = ((RV_Hit.Location.Size() - CurrentLocation.Size()) > (NewLocation.Size() - CurrentLocation.Size()));
+			
+			// if the next location if before the collision spot, move there
+			if (!bAtCollision) {
+				Owner->SetActorLocation(EndLocation);
+			}
+			// if the next location is further, it is beyond the collision, thus go only up to the collision point
+			else {
+				Owner->SetActorLocation(RV_Hit.Location);
+			}
+		}		
 	}
+	// otherwise, if no collision takes place, move to the destination location
 	else {
 		Owner->SetActorLocation(EndLocation);
 	}
 
 	Owner->SetActorRotation(EndRotation);
 
+	// set the data of current tick as the old data for the next tick
+	OldLocation = NewLocation;
+	OldRotation = NewRotation;
+
+
 	// log data for debugging
-	FString DataLog = "Data applied: pos x:" + FString::SanitizeFloat(pos_x) + " y:" + FString::SanitizeFloat(pos_y) + " z:" + FString::SanitizeFloat(pos_z) +
-		" orient x: " + FString::SanitizeFloat(orient_x) + " y : " + FString::SanitizeFloat(orient_y) + " z : " + FString::SanitizeFloat(orient_z) + " w : " + FString::SanitizeFloat(orient_w) +
-		" pitch: " + FString::SanitizeFloat(pitch) + " yaw: " + FString::SanitizeFloat(yaw) + " roll: " + FString::SanitizeFloat(roll);
-	UE_LOG(LogTemp, Log, TEXT("%s"), *DataLog);
+	// TODO update
+	//FString DataLog = "Data applied: pos x:" + FString::SanitizeFloat(pos_x) + " y:" + FString::SanitizeFloat(pos_y) + " z:" + FString::SanitizeFloat(pos_z) +
+	//	" orient x: " + FString::SanitizeFloat(orient_x) + " y : " + FString::SanitizeFloat(orient_y) + " z : " + FString::SanitizeFloat(orient_z) + " w : " + FString::SanitizeFloat(orient_w) +
+	//	" pitch: " + FString::SanitizeFloat(pitch) + " yaw: " + FString::SanitizeFloat(yaw) + " roll: " + FString::SanitizeFloat(roll);
+	//UE_LOG(LogTemp, Log, TEXT("%s"), *DataLog);
 }
 
 

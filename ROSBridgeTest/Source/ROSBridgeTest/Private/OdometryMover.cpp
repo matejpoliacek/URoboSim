@@ -21,7 +21,10 @@ void UOdometryMover::BeginPlay()
 	Super::BeginPlay();
 
 	// Create handler for the actor component
-	Handler = MakeShareable<FROSBridgeHandler>(new FROSBridgeHandler(TEXT("192.168.0.16"), 9001));
+	IPADDRESS = "192.168.0.16";
+	PORT = 9001;
+
+	Handler = MakeShareable<FROSBridgeHandler>(new FROSBridgeHandler(TEXT(IPADDRESS), PORT));
 	UE_LOG(LogTemp, Log, TEXT("Handler for OdometryMover Created. "));
 
 	OdomSubscriber = MakeShareable<FROSOdometrySubScriber>(new FROSOdometrySubScriber(TEXT("/odom")));
@@ -33,8 +36,37 @@ void UOdometryMover::BeginPlay()
 	
 	Owner = GetOwner();
 	
-	OldLocation = Owner->GetActorLocation();
-	OldRotation = Owner->GetActorRotation();
+	RV_TraceParams.AddIgnoredActor(Owner);
+
+	do {		
+		Handler->Render();
+
+		// extract initial location
+		OdometryMessage = OdomSubscriber->GetMessage();
+
+		JsonObject = OdometryMessage->ToJsonObject();
+		ExtractPositionAndRotation(JsonObject, ExtractedLocation, QuaternionData);
+
+		ConvertLocationUnits(ExtractedLocation);
+		OldMsgLocation = ExtractedLocation;
+
+		toEulerianAngle(QuaternionData, roll, pitch, yaw);
+		RadiansToDegrees(pitch);
+		RadiansToDegrees(yaw);
+		RadiansToDegrees(roll);
+
+		OldMsgRotation = FRotator(pitch, yaw, roll);
+		ConvertRotationUnits(OldMsgRotation);
+	} while (isinf(OldMsgLocation.X)); // until a message is received
+
+	FString old = FString::SanitizeFloat(OldMsgLocation.X) + " " + FString::SanitizeFloat(OldMsgLocation.Y) + " " + FString::SanitizeFloat(OldMsgLocation.Z);
+	UE_LOG(LogTemp, Log, TEXT("Old location at BeginPlay: %s"), *old);
+
+	FString oldrot = FString::SanitizeFloat(pitch) + " " + FString::SanitizeFloat(yaw) + " " + FString::SanitizeFloat(roll);
+	UE_LOG(LogTemp, Log, TEXT("Old rotation pre-conversion at BeginPlay: %s"), *oldrot);
+
+	FString oldrotconv = FString::SanitizeFloat(OldMsgRotation.Pitch) + " " + FString::SanitizeFloat(OldMsgRotation.Yaw) + " " + FString::SanitizeFloat(OldMsgRotation.Roll);
+	UE_LOG(LogTemp, Log, TEXT("Old rotation post-conversion at BeginPlay: %s"), *oldrotconv);
 }
 
 
@@ -42,81 +74,90 @@ void UOdometryMover::BeginPlay()
 void UOdometryMover::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
 	Handler->Render();
 
-	FString FilePath = "C:\\Users\\Matej\\Documents\\Unreal Projects\\MScProject\\OdomMsgs.txt";
-	FString msg;
-	FFileHelper::LoadFileToString(msg, *FilePath);
+	OdometryMessage = OdomSubscriber->GetMessage();
 
-	//UE_LOG(LogTemp, Log, TEXT("This is the extracted string: %s"), *msg);
-	
-	// convert msg to json 	
-	JsonObject = MakeShareable(new FJsonObject());;
-	TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(msg);
-	
-	// extract data of interest
-	if (FJsonSerializer::Deserialize(JsonReader, JsonObject))
-	{
+	JsonObject = OdometryMessage->ToJsonObject();
 
-		// top level -> pose
-		PoseObject = JsonObject->GetObjectField(FString(TEXT("pose")));
-
-		// pose -> pose (as opposed to covariance)
-		PoseObject = PoseObject->GetObjectField(FString(TEXT("pose")));
-		
-		// pose -> position
-		PositionObject = PoseObject->GetObjectField(FString(TEXT("position")));
-
-		pos_x = PositionObject->GetNumberField(FString(TEXT("x")));
-		pos_y = PositionObject->GetNumberField(FString(TEXT("y")));
-		pos_z = PositionObject->GetNumberField(FString(TEXT("z")));
-
-		OrientationObject = PoseObject->GetObjectField(FString(TEXT("orientation")));
-		
-		orient_x = OrientationObject->GetNumberField(FString(TEXT("x")));
-		orient_y = OrientationObject->GetNumberField(FString(TEXT("y")));
-		orient_z = OrientationObject->GetNumberField(FString(TEXT("z")));
-		orient_w = OrientationObject->GetNumberField(FString(TEXT("w")));
-	}
-
-	Quaternion q;
-	q.x = orient_x;
-	q.y = orient_y;
-	q.z = orient_z;
-	q.w = orient_w;
+	ExtractPositionAndRotation(JsonObject, ExtractedLocation, QuaternionData);
 
 	// adapt units and store
 	// ROS provided y value and yaw is opposite in UE, hence we need to set them negative
-	NewLocation = FVector(pos_x * toCM_MULTIPLIER, -pos_y * toCM_MULTIPLIER, pos_z * toCM_MULTIPLIER);
 
-	toEulerianAngle(q, roll, pitch, yaw);
+	ConvertLocationUnits(ExtractedLocation);
+	NewMsgLocation = ExtractedLocation;
+
+	FString extract = FString::SanitizeFloat(NewMsgLocation.X) + " " + FString::SanitizeFloat(NewMsgLocation.Y) + " " + FString::SanitizeFloat(NewMsgLocation.Z);
+	UE_LOG(LogTemp, Log, TEXT("This is the extracted location: %s"), *extract);
+
+	toEulerianAngle(QuaternionData, roll, pitch, yaw);
 	RadiansToDegrees(pitch);
 	RadiansToDegrees(yaw);
 	RadiansToDegrees(roll);
-
-	yaw = -yaw;
-
-	NewRotation = FRotator(pitch, yaw, roll);
+	
+	NewMsgRotation = FRotator(pitch, yaw, roll);
+	ConvertRotationUnits(NewMsgRotation);
 	
 	// obtain differences from previous state
-	CalculatePositionDifference(OldLocation, NewLocation, LocationDifference);
-	CalculateOrientationDifference(OldRotation, NewRotation, RotationDifference);
+	LocationMsgDifference = CalculatePositionDifference(OldMsgLocation, NewMsgLocation);
+	RotationMsgDifference = CalculateOrientationDifference(OldMsgRotation, NewMsgRotation);
 
+	FHitResult RV_CurrentVerticalHit(ForceInit);
+	FHitResult RV_TargetVerticalHit(ForceInit);
 
-	FVector CurrentLocation = Owner->GetActorLocation();
-	FRotator CurrentRotation = Owner->GetActorRotation();
+	CurrentLocation = Owner->GetActorLocation();
+	CurrentRotation = Owner->GetActorRotation();
+
+	FString old = FString::SanitizeFloat(OldMsgLocation.X) + " " + FString::SanitizeFloat(OldMsgLocation.Y) + " " + FString::SanitizeFloat(OldMsgLocation.Z);
+	UE_LOG(LogTemp, Log, TEXT("Old location: %s"), *old);
+
+	FString current = FString::SanitizeFloat(CurrentLocation.X) + " " + FString::SanitizeFloat(CurrentLocation.Y) + " " + FString::SanitizeFloat(CurrentLocation.Z);
+	UE_LOG(LogTemp, Log, TEXT("Current location: %s"), *current);
+
+	FString diff = FString::SanitizeFloat(LocationMsgDifference.X) + " " + FString::SanitizeFloat(LocationMsgDifference.Y) + " " + FString::SanitizeFloat(LocationMsgDifference.Z);
+	UE_LOG(LogTemp, Log, TEXT("Difference in location: %s"), *diff);
 
 	// apply positional changes to the actor
-	FVector EndLocation = CurrentLocation + LocationDifference;
-	FRotator EndRotation = CurrentRotation + RotationDifference;
+	TargetLocation = CurrentLocation + LocationMsgDifference;
+	TargetRotation = CurrentRotation + RotationMsgDifference;
 
+	FString target = FString::SanitizeFloat(TargetLocation.X) + " " + FString::SanitizeFloat(TargetLocation.Y) + " " + FString::SanitizeFloat(TargetLocation.Z);
+	UE_LOG(LogTemp, Log, TEXT("Target location: %s"), *target);
+
+	// create points high above terrain for current and end locations
+	CurrentLocationHigh = CurrentLocation + FVector(0, 0, 100000);
+	TargetLocationHigh = TargetLocation + FVector(0, 0, 100000);
+
+	// similarly, create points below the terrain for current and end locations
+	CurrentLocationLow = CurrentLocation + FVector(0, 0, -100000);
+	TargetLocationLow = TargetLocation + FVector(0, 0, -100000);
+
+	// a vertical trace is run between both points (top-down) for new and old position
+	// to identify the change in the height of terrain, so that bot's Z position can be adjusted
+
+	bool bCurrentVerticalCollision = DoTrace(&RV_CurrentVerticalHit, &RV_TraceParams, &RV_ResponseParams, CurrentLocationHigh, CurrentLocationLow);
+	bool bTargetVerticalCollision = DoTrace(&RV_TargetVerticalHit, &RV_TraceParams, &RV_ResponseParams, TargetLocationHigh, TargetLocationLow);
+		
+	// find the altitude difference between current location and target location
+	double Z_diff = RV_TargetVerticalHit.Location.Z - RV_CurrentVerticalHit.Location.Z;
+	
+	FString currentvert = FString::SanitizeFloat(RV_CurrentVerticalHit.Location.X) + " " + FString::SanitizeFloat(RV_CurrentVerticalHit.Location.Y) + " " + FString::SanitizeFloat(RV_CurrentVerticalHit.Location.Z);
+	UE_LOG(LogTemp, Log, TEXT("Current vertical hit location: %s"), *currentvert);
+
+	FString targetvert = FString::SanitizeFloat(RV_TargetVerticalHit.Location.X) + " " + FString::SanitizeFloat(RV_TargetVerticalHit.Location.Y) + " " + FString::SanitizeFloat(RV_TargetVerticalHit.Location.Z);
+	UE_LOG(LogTemp, Log, TEXT("Target vertical hit location: %s"), *targetvert);
+
+	UE_LOG(LogTemp, Log, TEXT("Z difference: %s"), *FString::SanitizeFloat(Z_diff));
+
+	// check for collision in the horizontal plane
 
 	FHitResult RV_Hit(ForceInit);
-	FCollisionQueryParams RV_TraceParams = FCollisionQueryParams(FName(TEXT("RV_Trace")), true, Owner);
-	FCollisionResponseParams RV_ResponseParams;
 	
-	bool bCollision = DoTrace(&RV_Hit, &RV_TraceParams, &RV_ResponseParams, CurrentLocation, EndLocation);
+	bool bCollision = DoTrace(&RV_Hit, &RV_TraceParams, &RV_ResponseParams, CurrentLocation, TargetLocation);
 
+	
 	//if bCollision (i.e. robot has collided)... 
 	if (bCollision) {
 
@@ -129,36 +170,39 @@ void UOdometryMover::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 		// ... and the robot is yet to reach the location of the collision
 		else {
 			// check if the new location is before the collision location
-			bool bAtCollision = ((RV_Hit.Location.Size() - CurrentLocation.Size()) > (NewLocation.Size() - CurrentLocation.Size()));
+			bool bAtCollision = ((RV_Hit.Location.Size() - CurrentLocation.Size()) > (TargetLocation.Size() - CurrentLocation.Size()));
 			
 			// if the next location if before the collision spot, move there
 			if (!bAtCollision) {
-				Owner->SetActorLocation(EndLocation);
+				TargetLocation = TargetLocation + FVector(0, 0, Z_diff);
+				Owner->SetActorLocation(TargetLocation);
+				UE_LOG(LogTemp, Log, TEXT("Bot headed towards collision location."));
 			}
 			// if the next location is further, it is beyond the collision, thus go only up to the collision point
 			else {
 				Owner->SetActorLocation(RV_Hit.Location);
+				UE_LOG(LogTemp, Log, TEXT("Target location beyond collision location."));
 			}
 		}		
 	}
-	// otherwise, if no collision takes place, move to the destination location
+	// otherwise, if no collision takes place, move to the destination location, at an appropriate altitude
 	else {
-		Owner->SetActorLocation(EndLocation);
+		
+		//add the Z axis difference
+		TargetLocation = TargetLocation + FVector(0, 0, Z_diff);
+		Owner->SetActorLocation(TargetLocation);
 	}
 
-	Owner->SetActorRotation(EndRotation);
+	Owner->SetActorRotation(TargetRotation);
 
 	// set the data of current tick as the old data for the next tick
-	OldLocation = NewLocation;
-	OldRotation = NewRotation;
+	// the Z difference is omitted here, as any Z-coordinate difference coming from ROS will be calculated when comparing old and new messages
+	OldMsgLocation = NewMsgLocation;
+	OldMsgRotation = NewMsgRotation;
 
 
-	// log data for debugging
-	// TODO update
-	//FString DataLog = "Data applied: pos x:" + FString::SanitizeFloat(pos_x) + " y:" + FString::SanitizeFloat(pos_y) + " z:" + FString::SanitizeFloat(pos_z) +
-	//	" orient x: " + FString::SanitizeFloat(orient_x) + " y : " + FString::SanitizeFloat(orient_y) + " z : " + FString::SanitizeFloat(orient_z) + " w : " + FString::SanitizeFloat(orient_w) +
-	//	" pitch: " + FString::SanitizeFloat(pitch) + " yaw: " + FString::SanitizeFloat(yaw) + " roll: " + FString::SanitizeFloat(roll);
-	//UE_LOG(LogTemp, Log, TEXT("%s"), *DataLog);
+	FString endTick = FString::SanitizeFloat(Owner->GetActorLocation().X) + " " + FString::SanitizeFloat(Owner->GetActorLocation().Y) + " " + FString::SanitizeFloat(Owner->GetActorLocation().Z);
+	UE_LOG(LogTemp, Log, TEXT("Bot position at the end of tick: %s"), *endTick);
 }
 
 

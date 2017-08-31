@@ -4,10 +4,13 @@
 #include "nav_msgs/Odometry.h"
 #include "Core.h"
 
+static TSharedPtr<FROSBridgeMsgNavmsgsOdometry> Message = MakeShareable<FROSBridgeMsgNavmsgsOdometry>(new FROSBridgeMsgNavmsgsOdometry());
 
 class FROSOdometrySubScriber : public FROSBridgeSubscriber {
 
 public:
+
+
 	FROSOdometrySubScriber(FString Topic_) :
 		FROSBridgeSubscriber(TEXT("nav_msgs/Odometry"), Topic_)
 	{
@@ -30,21 +33,27 @@ public:
 	{
 		TSharedPtr<FROSBridgeMsgNavmsgsOdometry> Odometry = StaticCastSharedPtr<FROSBridgeMsgNavmsgsOdometry>(msg);
 		// do something
+		Message = Odometry;
 		UE_LOG(LogTemp, Log, TEXT("Message received! Content: %s"), *Odometry->ToString());
-		OutputMsgToFile(Odometry->ToJsonObject());
+		//OutputMsgToFile(Odometry->ToJsonObject());
 
 		return;
 	}
 
-private:
-	void OutputMsgToFile(TSharedPtr<FJsonObject> MsgJson)  const
-	{
-		FString FilePath = "C:\\Users\\Matej\\Documents\\Unreal Projects\\MScProject\\OdomMsgs.txt";
-		FString MsgString;
-		TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&MsgString);
-
-		if (FJsonSerializer::Serialize(MsgJson.ToSharedRef(), Writer)) {
-			FFileHelper::SaveStringToFile(MsgString, *FilePath);
-		}
+	TSharedPtr<FROSBridgeMsgNavmsgsOdometry> GetMessage() {
+		return Message;
 	}
+
+//private:
+//
+//	void OutputMsgToFile(TSharedPtr<FJsonObject> MsgJson)  const
+//	{
+//		FString FilePath = "C:\\Users\\Matej\\Documents\\Unreal Projects\\MScProject\\OdomMsgs.txt";
+//		FString MsgString;
+//		TSharedRef< TJsonWriter<> > Writer = TJsonWriterFactory<>::Create(&MsgString);
+//
+//		if (FJsonSerializer::Serialize(MsgJson.ToSharedRef(), Writer)) {
+//			FFileHelper::SaveStringToFile(MsgString, *FilePath);
+//		}
+//	}
 };

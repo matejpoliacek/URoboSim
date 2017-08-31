@@ -23,6 +23,12 @@ class ROSBRIDGETEST_API UOdometryMover : public UActorComponent
 
 public:	
 
+	UPROPERTY(EditAnywhere, Category = "Network Settings")
+	FString IPADDRESS;
+
+	UPROPERTY(EditAnywhere, Category = "Network Settings")
+	uint32 PORT;
+
 	struct Quaternion
 	{
 		double x = 0.0, y = 0.0, z = 0.0, w = 0.0;
@@ -31,22 +37,25 @@ public:
 	double toCM_MULTIPLIER = 100.0;
 
 	AActor* Owner;
+
+	TSharedPtr<FROSBridgeMsgNavmsgsOdometry> OdometryMessage =
+		MakeShareable<FROSBridgeMsgNavmsgsOdometry>(new FROSBridgeMsgNavmsgsOdometry());
 	
 	TSharedPtr<FROSBridgeHandler> Handler;
 	TSharedPtr<FROSOdometrySubScriber> OdomSubscriber;
 
-	TSharedPtr<FJsonObject> JsonObject, PoseObject, PositionObject, OrientationObject;
+	TSharedPtr<FJsonObject> JsonObject = MakeShareable(new FJsonObject());
 
-	FVector NewLocation;
-	FVector OldLocation;
-	FVector LocationDifference;
+	Quaternion QuaternionData;
 
-	FRotator NewRotation;
-	FRotator OldRotation;
-	FRotator RotationDifference;
+	FVector NewMsgLocation, OldMsgLocation, LocationMsgDifference, CurrentLocation, TargetLocation, ExtractedLocation,
+		CurrentLocationHigh, TargetLocationHigh, CurrentLocationLow, TargetLocationLow;
+	FRotator NewMsgRotation, OldMsgRotation, RotationMsgDifference, CurrentRotation, TargetRotation;
 
-	double pos_x = 0.0, pos_y = 0.0, pos_z = 0.0;
-	double orient_x = 0.0, orient_y = 0.0, orient_z = 0.0, orient_w = 0.0, yaw = 0.0, pitch = 0.0, roll = 0.0;
+	double yaw = 0.0, pitch = 0.0, roll = 0.0;
+
+	FCollisionQueryParams RV_TraceParams = FCollisionQueryParams(FName(TEXT("RV_Trace")), true, Owner);
+	FCollisionResponseParams RV_ResponseParams;
 	
 	// Sets default values for this component's properties
 	UOdometryMover();
@@ -107,15 +116,46 @@ public:
 	};
 
 	// calculates change in position 
-	void CalculatePositionDifference(FVector PreviousLocation, FVector NewLocation, FVector& PositionDifference) {
-		PositionDifference = NewLocation - PreviousLocation;
-		return;
+	FVector CalculatePositionDifference(FVector PreviousLocation, FVector NewLocation) {
+		return NewLocation - PreviousLocation;
 	};
 
 	// calculates change in orientation
-	void CalculateOrientationDifference(FRotator PreviousOrientation, FRotator NewOrientation, FRotator& OrientationDifference) {
-		OrientationDifference = NewOrientation - PreviousOrientation;
-		return;
+	FRotator CalculateOrientationDifference(FRotator PreviousOrientation, FRotator NewOrientation) {
+		return NewOrientation - PreviousOrientation;
 	};
 
+	// convert ROS units to centrimetres used in UE, using correct directions
+	void ConvertLocationUnits(FVector &Location) {
+		Location = Location * toCM_MULTIPLIER;
+		Location.Y = -Location.Y;
+	};
+
+	// convert directions of rotations from ROS to UE
+	void ConvertRotationUnits(FRotator &Orientation) {
+		Orientation.Yaw = -Orientation.Yaw;
+	};
+
+	void ExtractPositionAndRotation(TSharedPtr<FJsonObject> JsonObject, FVector& Position, Quaternion& q)	{
+
+		// top level -> pose
+		TSharedPtr<FJsonObject> PoseObject = JsonObject->GetObjectField(FString(TEXT("pose")));
+
+		// pose -> pose (as opposed to covariance)
+		PoseObject = PoseObject->GetObjectField(FString(TEXT("pose")));
+
+		// pose -> position
+		TSharedPtr<FJsonObject> PositionObject = PoseObject->GetObjectField(FString(TEXT("position")));
+
+		Position.X = PositionObject->GetNumberField(FString(TEXT("x")));
+		Position.Y = PositionObject->GetNumberField(FString(TEXT("y")));
+		Position.Z = PositionObject->GetNumberField(FString(TEXT("z")));
+
+		TSharedPtr<FJsonObject> OrientationObject = PoseObject->GetObjectField(FString(TEXT("orientation")));
+
+		q.x = OrientationObject->GetNumberField(FString(TEXT("x")));
+		q.y = OrientationObject->GetNumberField(FString(TEXT("y")));
+		q.z = OrientationObject->GetNumberField(FString(TEXT("z")));
+		q.w = OrientationObject->GetNumberField(FString(TEXT("w")));
+	}
 };

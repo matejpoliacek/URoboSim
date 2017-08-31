@@ -1,3 +1,6 @@
 [submodule "ROSBridgeTest/Plugins/UROSBridge"]
 	path = ROSBridgeTest/Plugins/UROSBridge
 	url = https://github.com/matejpoliacek/UROSBridge
+[submodule "ROSBridgeTest/Plugins/URoboVision"]
+	path = ROSBridgeTest/Plugins/URoboVision
+	url = https://github.com/matejpoliacek/URoboVision.git

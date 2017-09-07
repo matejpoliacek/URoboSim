@@ -21,10 +21,8 @@ void UOdometryMover::BeginPlay()
 	Super::BeginPlay();
 
 	// Create handler for the actor component
-	IPADDRESS = "192.168.0.16";
-	PORT = 9001;
 
-	Handler = MakeShareable<FROSBridgeHandler>(new FROSBridgeHandler(TEXT(IPADDRESS), PORT));
+	Handler = MakeShareable<FROSBridgeHandler>(new FROSBridgeHandler(IPADDRESS, PORT));
 	UE_LOG(LogTemp, Log, TEXT("Handler for OdometryMover Created. "));
 
 	OdomSubscriber = MakeShareable<FROSOdometrySubScriber>(new FROSOdometrySubScriber(TEXT("/odom")));
@@ -171,7 +169,7 @@ void UOdometryMover::TickComponent(float DeltaTime, ELevelTick TickType, FActorC
 		else {
 			// check if the new location is before the collision location
 			bool bAtCollision = ((RV_Hit.Location.Size() - CurrentLocation.Size()) > (TargetLocation.Size() - CurrentLocation.Size()));
-			
+
 			// if the next location if before the collision spot, move there
 			if (!bAtCollision) {
 				TargetLocation = TargetLocation + FVector(0, 0, Z_diff);

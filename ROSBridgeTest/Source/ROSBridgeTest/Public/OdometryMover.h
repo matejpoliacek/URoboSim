@@ -11,8 +11,6 @@
 #include "ROSBridgeHandler.h"
 #include "ROSOdometrySubscriber.h"
 
-
-
 #include "OdometryMover.generated.h"
 
 
@@ -24,10 +22,10 @@ class ROSBRIDGETEST_API UOdometryMover : public UActorComponent
 public:	
 
 	UPROPERTY(EditAnywhere, Category = "Network Settings")
-	FString IPADDRESS;
+	FString IPADDRESS = "192.168.0.16";
 
 	UPROPERTY(EditAnywhere, Category = "Network Settings")
-	uint32 PORT;
+	uint32 PORT = 9001;
 
 	struct Quaternion
 	{
@@ -107,7 +105,7 @@ public:
 			*RV_Hit,        //result
 			StartLoc,        //start
 			EndLoc,        //end
-			ECC_Pawn,    //collision channel
+			ECC_PhysicsBody,    //collision channel
 			*RV_TraceParams,
 			*RV_ResponseParams
 			);
